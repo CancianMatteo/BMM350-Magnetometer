@@ -7,6 +7,27 @@
 // Default I2C address for BMM350
 #define BMM350_I2C_ADDRESS 0x10
 
+// Forward declarations for custom types if not included in bmm350_defs.h
+#ifndef BMM350_MAG_TEMP_DATA_DEFINED
+#define BMM350_MAG_TEMP_DATA_DEFINED
+typedef struct {
+    float x;
+    float y;
+    float z;
+    float temperature;
+} bmm350_mag_temp_data;
+#endif
+
+// Threshold data struct (customize as needed)
+typedef struct {
+    float mag_x;
+    float mag_y;
+    float mag_z;
+    uint8_t interrupt_x;
+    uint8_t interrupt_y;
+    uint8_t interrupt_z;
+} sBmm350ThresholdData_t;
+
 class BMM350 {
 public:
     BMM350(uint8_t address = BMM350_I2C_ADDRESS);
@@ -22,25 +43,39 @@ public:
     void getCalibration(float &xOffset, float &yOffset, float &zOffset);
 
     // Power mode
-    bool setPowerMode(uint8_t mode);
-    uint8_t getPowerMode();
+    bool setPowerMode(bmm350_power_modes mode);
+    bmm350_power_modes getPowerMode();
+    String getPowerModeString();
 
-    bool setPresetMode(uint8_t preset);
-
+    // Chip ID
     uint8_t getChipID();
 
-    // Data rate
-    bool setDataRate(uint8_t odr);
-    uint8_t getDataRate();
+    // Data rate and performance
+    bool setRateAndPerformance(bmm350_data_rates rate, bmm350_performance_parameters performanceMode);
+    bool setSampleRate(uint8_t rate);
+    float getSampleRate();
+
+    // Axis enable/disable
+    void setEnDisAbleAxisXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ);
+    void getAxisStateXYZ(bool enAxis[3]);
+
+    // Geomagnetic data and heading
+    bmm350_mag_temp_data getGeomagneticData();
+    float getHeadingDegree();
 
     // Interrupts
-    bool enableInterrupt(uint8_t int_type, bool enable);
-    bool configureInterrupt(uint8_t int_type, uint8_t config);
+    bool enableInterrupt(bool enable);
+    bool configureInterrupt(uint8_t latching, uint8_t polarity, uint8_t drive, uint8_t map);
     bool getInterruptStatus(uint8_t &status);
+    void setDataReadyPin(bmm350_interrupt_enable_disable modes, bmm350_intr_polarity polarity);
+    bool getDataReadyState();
 
     // Thresholds
-    bool setThreshold(uint8_t axis, float threshold);
-    bool getThreshold(uint8_t axis, float &threshold);
+    void setThresholdInterrupt(uint8_t modes, int8_t threshold, bmm350_intr_polarity polarity);
+    sBmm350ThresholdData_t getThresholdData();
+
+    // Soft reset
+    void softReset();
 
 private:
     // Low-level I2C communication
@@ -50,7 +85,14 @@ private:
     // Delay function for API
     void delayMs(uint32_t ms);
 
-    // Helper for register access
-    void writeRegister(uint8_t reg, uint8_t value);
-    uint8_t readRegister(uint8_t reg);
+    // I2C address
+    uint8_t _address;
+
+    // Calibration offsets
+    float calibrationX, calibrationY, calibrationZ;
+
+    // Threshold state
+    int8_t threshold = 0;
+    uint8_t __thresholdMode = 3;
+    bmm350_threshold_data thresholdData;
 };

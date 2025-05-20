@@ -1165,4 +1165,16 @@ struct bmm350_pmu_cmd_status_0
     uint8_t pmu_cmd_value;
 };
 
+struct bmm350_threshold_data
+{
+    /*! Compensated mag X data */
+    float x;
+
+    /*! Compensated mag Y data */
+    float y;
+
+    /*! Compensated mag Z data */
+    float z;
+};
+
 #endif /* _BMM350_DEFS_H */
