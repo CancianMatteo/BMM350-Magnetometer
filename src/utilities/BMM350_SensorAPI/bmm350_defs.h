@@ -840,7 +840,6 @@ enum bmm350_performance_parameters {
     BMM350_AVERAGING_2 = BMM350_AVG_2,
     BMM350_AVERAGING_4 = BMM350_AVG_4,
     BMM350_AVERAGING_8 = BMM350_AVG_8,
-    /*lint -e849*/
     BMM350_ULTRALOWNOISE = BMM350_AVG_8,
     BMM350_LOWNOISE = BMM350_AVG_4,
     BMM350_REGULARPOWER = BMM350_AVG_2,
@@ -1125,6 +1124,9 @@ struct bmm350_dev
 
     /*! Magnetic reset and wait override */
     bmm350_mraw_override_t mraw_override;
+
+    /*! power mode */
+    uint8_t powerMode;
 };
 
 /*!

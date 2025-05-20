@@ -517,7 +517,7 @@ int8_t bmm350_set_powermode(enum bmm350_power_modes powermode, struct bmm350_dev
             }
         }
     }
-
+    if (rslt == BMM350_OK)  dev->powerMode = powermode;
     return rslt;
 }
 
