@@ -10,15 +10,11 @@
 // Forward declarations for custom types if not included in bmm350_defs.h
 #ifndef BMM350_MAG_TEMP_DATA_DEFINED
 #define BMM350_MAG_TEMP_DATA_DEFINED
-typedef struct {
-    float x;
-    float y;
-    float z;
-    float temperature;
-} bmm350_mag_temp_data;
-#endif
 
-// Threshold data struct (customize as needed)
+#define LOW_THRESHOLD_INTERRUPT  0
+#define HIGH_THRESHOLD_INTERRUPT 1
+#define NO_DATA                  0x7FFFFFFF
+
 typedef struct {
     float mag_x;
     float mag_y;
@@ -28,12 +24,14 @@ typedef struct {
     uint8_t interrupt_z;
 } sBmm350ThresholdData_t;
 
+#endif
+
 class BMM350 {
 public:
     BMM350(uint8_t address = BMM350_I2C_ADDRESS);
 
     // Sensor initialization
-    bool begin();
+    bool begin(uint8_t SDA, uint8_t SCL);
 
     // Magnetometer data reading
     bool readMagnetometer(float &x, float &y, float &z);
@@ -67,7 +65,7 @@ public:
     bool enableInterrupt(bool enable);
     bool configureInterrupt(uint8_t latching, uint8_t polarity, uint8_t drive, uint8_t map);
     bool getInterruptStatus(uint8_t &status);
-    void setDataReadyPin(bmm350_interrupt_enable_disable modes, bmm350_intr_polarity polarity);
+    bool setDataReadyPin(bmm350_interrupt_enable_disable modes, bmm350_intr_polarity polarity);
     bool getDataReadyState();
 
     // Thresholds
@@ -78,6 +76,10 @@ public:
     void softReset();
 
 private:
+    static struct bmm350_dev bmm350;
+    uint8_t _address;
+    float calibrationX, calibrationY, calibrationZ;
+
     // Low-level I2C communication
     int8_t i2cRead(uint8_t reg_addr, uint8_t *data, uint32_t len);
     int8_t i2cWrite(uint8_t reg_addr, const uint8_t *data, uint32_t len);
@@ -94,5 +96,5 @@ private:
     // Threshold state
     int8_t threshold = 0;
     uint8_t __thresholdMode = 3;
-    bmm350_threshold_data thresholdData;
+    sBmm350ThresholdData_t thresholdData;
 };

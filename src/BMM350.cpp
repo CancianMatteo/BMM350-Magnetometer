@@ -1,9 +1,5 @@
 #include <BMM350.h>
 
-static struct bmm350_dev bmm350;
-uint8_t _address;
-float calibrationX, calibrationY, calibrationZ;
-
 // Prototype for communication functions
 static int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr);
 static int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr);
@@ -11,17 +7,21 @@ static void delay_us(uint32_t period, void *intf_ptr);
 
 BMM350::BMM350(uint8_t address) : _address(address), calibrationX(0), calibrationY(0), calibrationZ(0) {}
 
-bool BMM350::begin() {
-    Wire.begin();
-    bmm350.intf = BMM350_I2C_INTF;
+bool BMM350::begin(uint8_t SDA, uint8_t SCL) {
+    Wire.begin(SDA, SCL);
     bmm350.read = i2c_read;
     bmm350.write = i2c_write;
     bmm350.delay_us = delay_us;
     bmm350.intf_ptr = &_address;
-    bmm350.ambient_temp = 25.0f;
 
     int8_t result = bmm350_init(&bmm350);
-    return result == BMM350_OK;
+    if (result != BMM350_OK) {
+        return false;
+    }
+    if (bmm350.chip_id != BMM350_CHIP_ID) {
+        return false;
+    }
+    return true;
 }
 
 bool BMM350::readMagnetometer(float &x, float &y, float &z) {
@@ -54,7 +54,7 @@ bool BMM350::setPowerMode(bmm350_power_modes mode) {
 }
 
 bmm350_power_modes BMM350::getPowerMode() {
-    return bmm350.powerMode;
+    return static_cast<bmm350_power_modes>(bmm350.powerMode);
 }
 
 String BMM350::getPowerModeString() {
@@ -103,7 +103,7 @@ bool BMM350::getInterruptStatus(uint8_t &status) {
     return bmm350_get_interrupt_status(&status, &bmm350) == BMM350_OK;
 }
 
-void DFRobot_BMM350::softReset(void){
+void BMM350::softReset(void){
     bmm350_soft_reset(&bmm350);
     bmm350_set_powermode(BMM350_SUSPEND_MODE, &bmm350);
 }
@@ -141,9 +141,9 @@ bool BMM350::setSampleRate(uint8_t rate) {
     if (bmm350_get_regs(BMM350_REG_PMU_CMD_AGGR_SET, &reg, 1, &bmm350) != BMM350_OK) {
         return false;
     }
-    uint8_t avg = reg & BMM350_AVG_MASK;
+    uint8_t avg = reg & BMM350_AVG_MSK;
     // Set new rate, keep averaging
-    reg = ((rate << BMM350_ODR_POS) & BMM350_ODR_MASK) | avg;
+    reg = ((rate << BMM350_ODR_POS) & BMM350_ODR_MSK) | avg;
     // Write back the register
     if (bmm350_set_regs(BMM350_REG_PMU_CMD_AGGR_SET, &reg, 1, &bmm350) != BMM350_OK) {
         return false;
@@ -164,11 +164,11 @@ bool BMM350::setSampleRate(uint8_t rate) {
  * @return float [Hz]
  */
 float BMM350::getSampleRate() {
-    int8_t odrReg = 0xFF;
     uint8_t avgODRreg = 0;
     if (bmm350_get_regs(BMM350_REG_PMU_CMD_AGGR_SET, &avgODRreg, 1, &bmm350) == BMM350_OK) {
-        res = BMM350_GET_BITS(reg, BMM350_ODR);
+        return -1;
     }
+    uint8_t odrReg = BMM350_GET_BITS(avgODRreg, BMM350_ODR);
     switch (odrReg) {
         case BMM350_DATA_RATE_1_5625HZ: return 1.5625;
         case BMM350_DATA_RATE_3_125HZ: return 3.125;
@@ -187,18 +187,13 @@ void BMM350::setEnDisAbleAxisXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis 
     bmm350_enable_axes(enX, enY, enZ, &bmm350);
 }
 
-bool[] BMM350::getAxisStateXYZ() {
-    uint8_t axisReg = 0;
-    bool enAxis[3];
-
+void BMM350::getAxisStateXYZ(bool enAxis[3]) {
     // Get the configurations for ODR and performance
-    axisReg = bmm350Sensor.axisEn;
-    
+    uint8_t axisReg = bmm350.axis_en;
     // Read the performance status
     enAxis[0] = BMM350_GET_BITS(axisReg, BMM350_EN_X);
     enAxis[1] = BMM350_GET_BITS(axisReg, BMM350_EN_Y);
     enAxis[2] = BMM350_GET_BITS(axisReg, BMM350_EN_Z);
-    return enAxis;
 }
 
 bmm350_mag_temp_data BMM350::getGeomagneticData() {   
@@ -216,7 +211,7 @@ bmm350_mag_temp_data BMM350::getGeomagneticData() {
     float mag_calibrated[3] = {0};
 
     // Get compensated raw data from sensor
-    bmm350GetCompensatedMagXYZTempData(&magTempData, &bmm350Sensor);
+    bmm350_get_compensated_mag_xyz_temp_data(&magTempData, &bmm350);
 
     // Apply hard iron offset correction
     mag_raw[0] = magTempData.x + hard_iron[0];
@@ -255,17 +250,20 @@ float BMM350::getHeadingDegree() {
     return headingDeg;
 }
 
-void BMM350::setDataReadyPin(bmm350_interrupt_enable_disable modes, bmm350_intr_polarity polarity) {
+bool BMM350::setDataReadyPin(bmm350_interrupt_enable_disable modes, bmm350_intr_polarity polarity) {
     // Get interrupt control configuration
     uint8_t regData = 0;
-    if (bmm350_get_regs(BMM350_REG_INT_CTRL, &regData, 1, &bmm350Sensor) == BMM350_OK){
+    if (bmm350_get_regs(BMM350_REG_INT_CTRL, &regData, 1, &bmm350) == BMM350_OK){
         regData = BMM350_SET_BITS_POS_0(regData, BMM350_INT_MODE, BMM350_PULSED);
         regData = BMM350_SET_BITS(regData, BMM350_INT_POL, polarity);
         regData = BMM350_SET_BITS(regData, BMM350_INT_OD, BMM350_INTR_PUSH_PULL);     
         regData = BMM350_SET_BITS(regData, BMM350_INT_OUTPUT_EN, BMM350_MAP_TO_PIN); 
         regData = BMM350_SET_BITS(regData, BMM350_DRDY_DATA_REG_EN, modes);
         // Finally transfer the interrupt configurations
-        rslt = bmm350_set_regs(BMM350_REG_INT_CTRL, &regData, 1, &bmm350Sensor);
+        if (bmm350_set_regs(BMM350_REG_INT_CTRL, &regData, 1, &bmm350) != BMM350_OK){
+            return false;
+        }
+        return true;
     }
 }
 
@@ -286,7 +284,7 @@ void BMM350::setThresholdInterrupt(uint8_t modes, int8_t threshold, bmm350_intr_
     setDataReadyPin(BMM350_ENABLE_INTERRUPT, polarity);
 }
 
-bmm350_mag_temp_data BMM350::getThresholdData(){
+sBmm350ThresholdData_t BMM350::getThresholdData(){
     // Clear previous threshold data
     thresholdData.mag_x = NO_DATA;
     thresholdData.mag_y = NO_DATA;
