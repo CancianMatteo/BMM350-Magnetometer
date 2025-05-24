@@ -1,21 +1,18 @@
 #include "BMM350.h"
 
 // Create an instance of the BMM350 class
-BMM350 magnetometer;
+BMM350 magnetometer(0x14); // or 0x15
 
 void setup() {
     // Initialize serial communication for debugging
     Serial.begin(115200);
-    delay(3000);
 
     Serial.println("Initializing BMM350 Magnetometer...");
-
     // Initialize the magnetometer
-    if (!magnetometer.begin(22, 23)) {
+    while (!magnetometer.begin(22, 23)) {
         Serial.println("Failed to initialize BMM350! Check your wiring.");
         delay(500);
     }
-
     Serial.println("BMM350 initialized successfully.");
 }
 
