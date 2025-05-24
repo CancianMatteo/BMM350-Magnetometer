@@ -8,17 +8,21 @@ static void delay_us(uint32_t period, void *intf_ptr);
 BMM350::BMM350(uint8_t address) : _address(address), calibrationX(0), calibrationY(0), calibrationZ(0) {}
 
 bool BMM350::begin(uint8_t SDA, uint8_t SCL) {
+    Wire.end();
+    delay(10);
     Wire.begin(SDA, SCL);
-    bmm350.read = i2c_read;
-    bmm350.write = i2c_write;
-    bmm350.delay_us = delay_us;
-    bmm350.intf_ptr = &_address;
+    delay(10);
+    this->bmm350.read = i2c_read;
+    this->bmm350.write = i2c_write;
+    this->bmm350.delay_us = delay_us;
+    this->bmm350.intf_ptr = &(this->_address);
 
-    int8_t result = bmm350_init(&bmm350);
+    int8_t result = bmm350_init(&(this->bmm350));
     if (result != BMM350_OK) {
         return false;
     }
-    if (bmm350.chip_id != BMM350_CHIP_ID) {
+    if (this->bmm350.chip_id != BMM350_CHIP_ID) {
+        Wire.end();
         return false;
     }
     return true;
@@ -332,11 +336,11 @@ sBmm350ThresholdData_t BMM350::getThresholdData(){
 // --- Low-level I2C communication ---
 
 int8_t BMM350::i2cRead(uint8_t reg_addr, uint8_t *data, uint32_t len) {
-    return i2c_read(reg_addr, data, len, &_address);
+    return i2c_read(reg_addr, data, len, &(this->_address));
 }
 
 int8_t BMM350::i2cWrite(uint8_t reg_addr, const uint8_t *data, uint32_t len) {
-    return i2c_write(reg_addr, data, len, &_address);
+    return i2c_write(reg_addr, data, len, &(this->_address));
 }
 
 void BMM350::delayMs(uint32_t ms) {

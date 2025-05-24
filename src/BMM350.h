@@ -5,7 +5,7 @@
 #include "utilities/BMM350_SensorAPI/bmm350_defs.h"
 
 // Default I2C address for BMM350
-#define BMM350_I2C_ADDRESS 0x10
+#define BMM350_I2C_ADDRESS 0x14 // or 0x15
 
 // Forward declarations for custom types if not included in bmm350_defs.h
 #ifndef BMM350_MAG_TEMP_DATA_DEFINED
@@ -76,20 +76,8 @@ public:
     void softReset();
 
 private:
-    static struct bmm350_dev bmm350;
-    uint8_t _address;
-    float calibrationX, calibrationY, calibrationZ;
-
-    // Low-level I2C communication
-    int8_t i2cRead(uint8_t reg_addr, uint8_t *data, uint32_t len);
-    int8_t i2cWrite(uint8_t reg_addr, const uint8_t *data, uint32_t len);
-
-    // Delay function for API
-    void delayMs(uint32_t ms);
-
-    // I2C address
-    uint8_t _address;
-
+    struct bmm350_dev bmm350;
+    uint8_t _address;           // I2C address
     // Calibration offsets
     float calibrationX, calibrationY, calibrationZ;
 
@@ -97,4 +85,11 @@ private:
     int8_t threshold = 0;
     uint8_t __thresholdMode = 3;
     sBmm350ThresholdData_t thresholdData;
+
+    // Low-level I2C communication
+    int8_t i2cRead(uint8_t reg_addr, uint8_t *data, uint32_t len);
+    int8_t i2cWrite(uint8_t reg_addr, const uint8_t *data, uint32_t len);
+
+    // Delay function for API
+    void delayMs(uint32_t ms);
 };
