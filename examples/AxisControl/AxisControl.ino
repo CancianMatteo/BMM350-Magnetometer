@@ -1,19 +1,25 @@
 #include "BMM350.h"
 
+#define SDA_PIN 22
+#define SCL_PIN 23
+
 BMM350 magnetometer(0x14); // or 0x15
 
 void setup() {
     Serial.begin(115200);
+    while(!Serial);
 
+    Serial.println("1/3 Initializing BMM350 Magnetometer...");
     // Initialize the magnetometer
-    while (!magnetometer.begin(22, 23)) {
+    while (!magnetometer.begin(SDA_PIN, SCL_PIN)) {
         Serial.println("Failed to initialize BMM350!");
         delay(500);
     }
-    Serial.println("BMM350 initialized.");
+    Serial.println("2/3 BMM350 initialized");
+
     // Enable only X and Y axes
     magnetometer.setEnDisAbleAxisXYZ(BMM350_ENABLE_AXIS, BMM350_ENABLE_AXIS, BMM350_DISABLE_AXIS);
-    Serial.println("BMM350 ready. Only X and Y axes enabled.");
+    Serial.println("3/3 BMM350 ready. Only X and Y axes enabled.");
 }
 
 void loop() {

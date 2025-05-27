@@ -28,13 +28,21 @@ bool BMM350::begin(uint8_t SDA, uint8_t SCL) {
     return true;
 }
 
-bool BMM350::readMagnetometer(float &x, float &y, float &z) {
-    struct bmm350_mag_temp_data data;
-    int8_t result = bmm350_get_compensated_mag_xyz_temp_data(&data, &bmm350);
+/**
+ * @brief Get raw magnetometer data (optionally with user calibration offsets).
+ * 
+ * @param xOut Output: X axis value
+ * @param yOut Output: Y axis value
+ * @param zOut Output: Z axis value
+ * @return true if successful, false otherwise
+ */
+bool BMM350::readRawMagnetometerData(float &xOut, float &yOut, float &zOut) {
+    struct bmm350_raw_mag_data data;
+    int8_t result = bmm350_read_uncomp_mag_temp_data(&data, &bmm350);
     if (result == BMM350_OK) {
-        x = data.x - calibrationX;
-        y = data.y - calibrationY;
-        z = data.z - calibrationZ;
+        xOut = data.raw_xdata - calibrationX;
+        yOut = data.raw_ydata - calibrationY;
+        zOut = data.raw_zdata - calibrationZ;
         return true;
     }
     return false;
@@ -200,14 +208,20 @@ void BMM350::getAxisStateXYZ(bool enAxis[3]) {
     enAxis[2] = BMM350_GET_BITS(axisReg, BMM350_EN_Z);
 }
 
-bmm350_mag_temp_data BMM350::getGeomagneticData() {   
-    //hard iron calibration parameters (offsets)
+/**
+ * @brief Get fully compensated geomagnetic data (hard/soft iron corrections).
+ * 
+ * @return bmm350_mag_temp_data Compensated data
+ */
+bmm350_mag_temp_data BMM350::readCompensatedGeomagneticData() {   
+    // Hard iron calibration parameters (offsets)
     const float hard_iron[3] = {-13.45, -28.95, 12.69};
-    //oft iron calibration matrix (scaling/skew)
+    // Soft iron calibration matrix (scaling/skew)
     const float soft_iron[3][3] = {
-    {0.992, -0.006, -0.007},
-    {-0.006, 0.990, -0.004},
-    {-0.007, -0.004, 1.019}};
+        {0.992, -0.006, -0.007},
+        {-0.006, 0.990, -0.004},
+        {-0.007, -0.004, 1.019}
+    };
 
     bmm350_mag_temp_data magData = {};
     bmm350_mag_temp_data magTempData = {};

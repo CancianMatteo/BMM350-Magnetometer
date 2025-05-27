@@ -33,8 +33,8 @@ public:
     // Sensor initialization
     bool begin(uint8_t SDA, uint8_t SCL);
 
-    // Magnetometer data reading
-    bool readMagnetometer(float &x, float &y, float &z);
+    // Returns raw magnetometer data (optionally with user calibration offsets)
+    bool BMM350::readRawMagnetometerData(float &x, float &y, float &z);
 
     // Calibration
     void setCalibration(float xOffset, float yOffset, float zOffset);
@@ -57,8 +57,9 @@ public:
     void setEnDisAbleAxisXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ);
     void getAxisStateXYZ(bool enAxis[3]);
 
-    // Geomagnetic data and heading
-    bmm350_mag_temp_data getGeomagneticData();
+    // Returns fully compensated geomagnetic data (hard/soft iron corrections)
+    bmm350_mag_temp_data BMM350::readCompensatedGeomagneticData();
+    // Returns heading in degrees
     float getHeadingDegree();
 
     // Interrupts
