@@ -254,7 +254,7 @@ bmm350_mag_temp_data BMM350::readCompensatedGeomagneticData() {
 
 float BMM350::getHeadingDegree() {
     // Get calibrated geomagnetic data
-    bmm350_mag_temp_data magData = getGeomagneticData();
+    bmm350_mag_temp_data magData = readCompensatedGeomagneticData();
     // Calculate heading in radians (atan2(y, x) gives angle from X axis)
     float heading = atan2(magData.y, magData.x);
     // Convert from radians to degrees
@@ -313,7 +313,7 @@ sBmm350ThresholdData_t BMM350::getThresholdData(){
 
     // Only check if data is ready
     if (getDataReadyState()) {
-        bmm350_mag_temp_data magData = getGeomagneticData();
+        bmm350_mag_temp_data magData = readCompensatedGeomagneticData();
         int32_t thresholdValue = static_cast<int32_t>(threshold) * 16; // scale threshold
 
         if (__thresholdMode == LOW_THRESHOLD_INTERRUPT) {
