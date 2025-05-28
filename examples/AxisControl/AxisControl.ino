@@ -21,7 +21,7 @@ void setup() {
     Serial.println("2/3 BMM350 initialized");
 
     // Enable only X and Y axes
-    magnetometer.setEnDisAbleAxesXYZ(BMM350_ENABLE_AXIS, BMM350_ENABLE_AXIS, BMM350_DISABLE_AXIS);
+    magnetometer.setEnDisAbleAxesXYZ(BMM350_ENABLE, BMM350_ENABLE, BMM350_DISABLE);
     Serial.println("3/3 BMM350 ready. Only X and Y axes enabled.");
 }
 
