@@ -1,3 +1,4 @@
+#include <Wire.h>
 #include "BMM350.h"
 
 #define SDA_PIN 22
@@ -8,22 +9,20 @@ BMM350 magnetometer(0x14); // or 0x15
 void setup() {
     Serial.begin(115200);
     while(!Serial);
-    
-    Serial.println("1/4 Initializing BMM350 Magnetometer...");
+
+    Serial.println("1/3 Initializing BMM350 Magnetometer...");
     // Initialize the magnetometer
-    while (!magnetometer.begin(SDA_PIN, SCL_PIN)) {
+    Wire.begin(SDA_PIN, SCL_PIN);
+    delay(100);
+    while (!magnetometer.begin(&Wire)) {
         Serial.println("Failed to initialize BMM350!");
         delay(500);
     }
-    Serial.println("2/4 BMM350 initialized");
+    Serial.println("2/3 BMM350 initialized and ready");
     
     // Set threshold interrupt for X axis, high polarity
     magnetometer.setThresholdInterrupt(HIGH_THRESHOLD_INTERRUPT, 40, BMM350_ACTIVE_HIGH);
-    Serial.println("3/4 Threshold interrupt set");
-
-    // Enable all axes
-    magnetometer.setEnDisAbleAxisXYZ(BMM350_X_EN, BMM350_Y_EN, BMM350_Z_EN);
-    Serial.println("4/4 BMM350 ready");
+    Serial.println("3/3 Threshold interrupt set");
 }
 
 void loop() {

@@ -31,10 +31,11 @@ public:
     BMM350(uint8_t address = BMM350_I2C_ADDRESS);
 
     // Sensor initialization
-    bool begin(uint8_t SDA, uint8_t SCL);
+    bool begin(TwoWire* wire = &Wire);
 
     // Returns raw magnetometer data (optionally with user calibration offsets)
-    bool readRawMagnetometerData(float &x, float &y, float &z);
+    bool readRawMagnetometer(int32_t &xRaw, int32_t &yRaw, int32_t &zRaw);
+    bool readMagnetometerData(float &x, float &y, float &z);
 
     // Calibration
     void setCalibration(float xOffset, float yOffset, float zOffset);
@@ -54,11 +55,11 @@ public:
     float getSampleRate();
 
     // Axis enable/disable
-    void setEnDisAbleAxisXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ);
-    void getAxisStateXYZ(bool enAxis[3]);
+    void setEnDisAbleAxesXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ);
+    void getAxesStateXYZ(bool enAxis[3]);
 
     // Returns fully compensated geomagnetic data (hard/soft iron corrections)
-    bmm350_mag_temp_data readCompensatedGeomagneticData();
+    bmm350_mag_temp_data readCalibratedGeomagneticData();
     // Returns heading in degrees
     float getHeadingDegree();
 
@@ -78,6 +79,7 @@ public:
 
 private:
     struct bmm350_dev bmm350;
+    TwoWire* _pWire;            // Make the library more flexible and able to work with any I2C bus
     uint8_t _address;           // I2C address
     // Calibration offsets
     float calibrationX, calibrationY, calibrationZ;
@@ -88,6 +90,9 @@ private:
     sBmm350ThresholdData_t thresholdData;
 
     // Low-level I2C communication
+    friend int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr);
+    friend int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr);
+
     int8_t i2cRead(uint8_t reg_addr, uint8_t *data, uint32_t len);
     int8_t i2cWrite(uint8_t reg_addr, const uint8_t *data, uint32_t len);
 

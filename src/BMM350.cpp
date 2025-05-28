@@ -1,21 +1,19 @@
 #include <BMM350.h>
 
 // Prototype for communication functions
-static int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr);
-static int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr);
+int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr);
+int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr);
 static void delay_us(uint32_t period, void *intf_ptr);
 
-BMM350::BMM350(uint8_t address) : _address(address), calibrationX(0), calibrationY(0), calibrationZ(0) {}
+BMM350::BMM350(uint8_t address) : _address(address), calibrationX(0), calibrationY(0), calibrationZ(0), _pWire(nullptr) {}
 
-bool BMM350::begin(uint8_t SDA, uint8_t SCL) {
-    Wire.end();
-    delay(10);
-    Wire.begin(SDA, SCL);
-    delay(10);
+bool BMM350::begin(TwoWire* wire) {
+    _pWire = wire;
+    
     this->bmm350.read = i2c_read;
     this->bmm350.write = i2c_write;
     this->bmm350.delay_us = delay_us;
-    this->bmm350.intf_ptr = &(this->_address);
+    this->bmm350.intf_ptr = this; // Pass the object for access to _address and _pWire
 
     int8_t result = bmm350_init(&(this->bmm350));
     if (result != BMM350_OK) {
@@ -25,24 +23,62 @@ bool BMM350::begin(uint8_t SDA, uint8_t SCL) {
         Wire.end();
         return false;
     }
+
+    // Set power mode to NORMAL (required to get data)
+    if (bmm350_set_powermode(BMM350_NORMAL_MODE, &bmm350) != BMM350_OK) {
+        return false;
+    }
+    delay(10);
+    // Set default data rate and performance
+    if (bmm350_set_odr_performance(BMM350_DATA_RATE_25HZ, BMM350_AVERAGING_4, &bmm350) != BMM350_OK) {
+        return false;
+    }
+    // Enable all axes by default (optional, but recommended)
+    if (bmm350_enable_axes(BMM350_X_EN, BMM350_Y_EN, BMM350_Z_EN, &bmm350) != BMM350_OK) {
+        return false;
+    }
+    delay(10);
+
     return true;
 }
 
 /**
- * @brief Get raw magnetometer data (optionally with user calibration offsets).
+ * @brief Get raw ADC magnetometer values.
+ * 
+ * @param xRaw Output X axis value
+ * @param yRaw Output Y axis value
+ * @param zRaw Output Z axis value
+ * @return true if successful, false otherwise
+ */
+bool BMM350::readRawMagnetometer(int32_t &xRaw, int32_t &yRaw, int32_t &zRaw) {
+    struct bmm350_raw_mag_data data;
+    int8_t result = bmm350_read_uncomp_mag_temp_data(&data, &bmm350);
+    if (result == BMM350_OK) {
+        xRaw = data.raw_xdata;
+        yRaw = data.raw_ydata;
+        zRaw = data.raw_zdata;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Get compensated magnetometer values (optionally with user calibration offsets).
  * 
  * @param xOut Output: X axis value
  * @param yOut Output: Y axis value
  * @param zOut Output: Z axis value
  * @return true if successful, false otherwise
  */
-bool BMM350::readRawMagnetometerData(float &xOut, float &yOut, float &zOut) {
-    struct bmm350_raw_mag_data data;
-    int8_t result = bmm350_read_uncomp_mag_temp_data(&data, &bmm350);
+bool BMM350::readMagnetometerData(float &xOut, float &yOut, float &zOut) {
+    bmm350_mag_temp_data magTempData = {};
+    // Get compensated raw data from sensor
+    int8_t result = bmm350_get_compensated_mag_xyz_temp_data(&magTempData, &bmm350);
     if (result == BMM350_OK) {
-        xOut = data.raw_xdata - calibrationX;
-        yOut = data.raw_ydata - calibrationY;
-        zOut = data.raw_zdata - calibrationZ;
+        // Apply calibration offsets
+        xOut = magTempData.x - calibrationX;
+        yOut = magTempData.y - calibrationY;
+        zOut = magTempData.z - calibrationZ;
         return true;
     }
     return false;
@@ -136,8 +172,10 @@ bool BMM350::setRateAndPerformance(bmm350_data_rates rate, bmm350_performance_pa
             res = bmm350_set_odr_performance(rate, BMM350_AVERAGING_8, &bmm350);
             break;
         default:
+            res = false;
             break;
     }
+    return res;
 }
 
 /**
@@ -195,11 +233,11 @@ float BMM350::getSampleRate() {
     }
 }
 
-void BMM350::setEnDisAbleAxisXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ) {
+void BMM350::setEnDisAbleAxesXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ) {
     bmm350_enable_axes(enX, enY, enZ, &bmm350);
 }
 
-void BMM350::getAxisStateXYZ(bool enAxis[3]) {
+void BMM350::getAxesStateXYZ(bool enAxis[3]) {
     // Get the configurations for ODR and performance
     uint8_t axisReg = bmm350.axis_en;
     // Read the performance status
@@ -209,11 +247,11 @@ void BMM350::getAxisStateXYZ(bool enAxis[3]) {
 }
 
 /**
- * @brief Get fully compensated geomagnetic data (hard/soft iron corrections).
+ * @brief Get oompensated and fully calibrated geomagnetic data (with hard/soft iron corrections).
  * 
- * @return bmm350_mag_temp_data Compensated data
+ * @return bmm350_mag_temp_data Calibrated data
  */
-bmm350_mag_temp_data BMM350::readCompensatedGeomagneticData() {   
+bmm350_mag_temp_data BMM350::readCalibratedGeomagneticData() {   
     // Hard iron calibration parameters (offsets)
     const float hard_iron[3] = {-13.45, -28.95, 12.69};
     // Soft iron calibration matrix (scaling/skew)
@@ -254,7 +292,7 @@ bmm350_mag_temp_data BMM350::readCompensatedGeomagneticData() {
 
 float BMM350::getHeadingDegree() {
     // Get calibrated geomagnetic data
-    bmm350_mag_temp_data magData = readCompensatedGeomagneticData();
+    bmm350_mag_temp_data magData = readCalibratedGeomagneticData();
     // Calculate heading in radians (atan2(y, x) gives angle from X axis)
     float heading = atan2(magData.y, magData.x);
     // Convert from radians to degrees
@@ -283,6 +321,7 @@ bool BMM350::setDataReadyPin(bmm350_interrupt_enable_disable modes, bmm350_intr_
         }
         return true;
     }
+    return false;
 }
 
 bool BMM350::getDataReadyState() {
@@ -313,7 +352,7 @@ sBmm350ThresholdData_t BMM350::getThresholdData(){
 
     // Only check if data is ready
     if (getDataReadyState()) {
-        bmm350_mag_temp_data magData = readCompensatedGeomagneticData();
+        bmm350_mag_temp_data magData = readCalibratedGeomagneticData();
         int32_t thresholdValue = static_cast<int32_t>(threshold) * 16; // scale threshold
 
         if (__thresholdMode == LOW_THRESHOLD_INTERRUPT) {
@@ -350,11 +389,11 @@ sBmm350ThresholdData_t BMM350::getThresholdData(){
 // --- Low-level I2C communication ---
 
 int8_t BMM350::i2cRead(uint8_t reg_addr, uint8_t *data, uint32_t len) {
-    return i2c_read(reg_addr, data, len, &(this->_address));
+    return i2c_read(reg_addr, data, len, this);
 }
 
 int8_t BMM350::i2cWrite(uint8_t reg_addr, const uint8_t *data, uint32_t len) {
-    return i2c_write(reg_addr, data, len, &(this->_address));
+    return i2c_write(reg_addr, data, len, this);
 }
 
 void BMM350::delayMs(uint32_t ms) {
@@ -362,29 +401,34 @@ void BMM350::delayMs(uint32_t ms) {
 }
 
 // --- Static I2C helpers for Bosch API ---
+int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr) {
+    BMM350* obj = static_cast<BMM350*>(intf_ptr);
+    uint8_t address = obj->_address;
+    TwoWire* wire = obj->_pWire;
 
-static int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr) {
-    uint8_t address = *(uint8_t *)intf_ptr;
-    Wire.beginTransmission(address);
-    Wire.write(reg_addr);
-    if (Wire.endTransmission(false) != 0) {
-        return -1;
-    }
-    Wire.requestFrom(address, (uint8_t)len);
-    for (uint32_t i = 0; i < len && Wire.available(); i++) {
-        data[i] = Wire.read();
+    wire->beginTransmission(address);
+    wire->write(reg_addr);
+    if (wire->endTransmission(false) != 0) return -1;
+
+    wire->requestFrom(address, (uint8_t)len);
+    for (uint32_t i = 0; i < len && wire->available(); i++) {
+        data[i] = wire->read();
     }
     return 0;
 }
 
-static int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr) {
-    uint8_t address = *(uint8_t *)intf_ptr;
-    Wire.beginTransmission(address);
-    Wire.write(reg_addr);
+int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr) {
+    BMM350* obj = static_cast<BMM350*>(intf_ptr);
+    uint8_t address = obj->_address;
+    TwoWire* wire = obj->_pWire;
+
+    wire->beginTransmission(address);
+    wire->write(reg_addr);
+
     for (uint32_t i = 0; i < len; i++) {
-        Wire.write(data[i]);
+        wire->write(data[i]);
     }
-    return Wire.endTransmission();
+    return wire->endTransmission() == 0 ? 0 : -1;
 }
 
 static void delay_us(uint32_t period, void * /*intf_ptr*/) {
