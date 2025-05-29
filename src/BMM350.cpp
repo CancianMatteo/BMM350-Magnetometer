@@ -253,12 +253,12 @@ void BMM350::getAxesStateXYZ(bool enAxis[3]) {
  */
 bmm350_mag_temp_data BMM350::readCalibratedGeomagneticData() {   
     // Hard iron calibration parameters (offsets)
-    const float hard_iron[3] = {-13.45, -28.95, 12.69};
+    const float hard_iron[3] = {1.29, 0.07, -6.49};
     // Soft iron calibration matrix (scaling/skew)
     const float soft_iron[3][3] = {
-        {0.992, -0.006, -0.007},
-        {-0.006, 0.990, -0.004},
-        {-0.007, -0.004, 1.019}
+        {0.974, -0.009, -0.005},
+        {-0.009, 0.973, 0.009},
+        {-0.005, 0.009, 1.056}
     };
 
     bmm350_mag_temp_data magData = {};
