@@ -1,9 +1,6 @@
 #include <Wire.h>
 #include "BMM350.h"
 
-#define SDA_PIN 22
-#define SCL_PIN 23
-
 BMM350 magnetometer(0x14); // or 0x15
 
 void setup() {
@@ -12,7 +9,7 @@ void setup() {
 
     Serial.println("Initializing BMM350 Magnetometer...");
     // Initialize the magnetometer
-    Wire.begin(SDA_PIN, SCL_PIN);
+    Wire.begin();
     delay(100);
     while (!magnetometer.begin(&Wire)) {
         Serial.println("Failed to initialize BMM350! Check your wiring.");
