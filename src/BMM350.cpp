@@ -5,7 +5,8 @@ int8_t i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr);
 int8_t i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr);
 static void delay_us(uint32_t period, void *intf_ptr);
 
-BMM350::BMM350 (uint8_t address) : _address(address), calibrationX(0), calibrationY(0), calibrationZ(0), _pWire(nullptr) {}
+BMM350::BMM350(uint8_t address)
+    : _address(address), _pWire(nullptr) {}
 
 bool BMM350::begin (TwoWire* wire){
     _pWire = wire;
@@ -239,6 +240,13 @@ float BMM350::getSampleRate (){
     }
 }
 
+/**
+ * @brief Set the enable/disable state of the X, Y, Z axes (default enabled).
+ * 
+ * @param enX default: BMM350_X_EN
+ * @param enY default: BMM350_Y_EN
+ * @param enZ default: BMM350_Z_EN
+ */
 void BMM350::setEnDisAbleAxesXYZ (bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ){
     bmm350_enable_axes(enX, enY, enZ, &bmm350);
 }

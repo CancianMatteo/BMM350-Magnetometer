@@ -55,7 +55,7 @@ public:
     float getSampleRate();
 
     // Axis enable/disable
-    void setEnDisAbleAxesXYZ(bmm350_x_axis_en_dis enX, bmm350_y_axis_en_dis enY, bmm350_z_axis_en_dis enZ);
+    void setEnDisAbleAxesXYZ(bmm350_x_axis_en_dis enX=BMM350_X_EN, bmm350_y_axis_en_dis enY=BMM350_Y_EN, bmm350_z_axis_en_dis enZ=BMM350_Z_EN);
     void getAxesStateXYZ(bool enAxis[3]);
 
     // Returns fully compensated geomagnetic data (hard/soft iron corrections)
