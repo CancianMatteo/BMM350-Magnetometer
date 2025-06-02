@@ -38,8 +38,8 @@ public:
     bool readMagnetometerData(float &x, float &y, float &z);
 
     // Calibration
-    void setCalibration(float xOffset, float yOffset, float zOffset);
-    void getCalibration(float &xOffset, float &yOffset, float &zOffset);
+    void setCalibration(const float hard_iron[3], const float soft_iron[3][3]);
+    void getCalibration(float hard_iron[3], float soft_iron[3][3]);
 
     // Power mode
     bool setPowerMode(bmm350_power_modes mode);
@@ -81,8 +81,13 @@ private:
     struct bmm350_dev bmm350;
     TwoWire* _pWire;            // Make the library more flexible and able to work with any I2C bus
     uint8_t _address;           // I2C address
-    // Calibration offsets
-    float calibrationX, calibrationY, calibrationZ;
+    // Hard and soft iron calibration values (default values)
+    float hard_iron[3] = {1.29f, 0.07f, -6.49f};
+    float soft_iron[3][3] = {
+        {0.974f, -0.009f, -0.005f},
+        {-0.009f, 0.973f, 0.009f},
+        {-0.005f, 0.009f, 1.056f}
+    };
 
     // Threshold state
     int8_t threshold = 0;
